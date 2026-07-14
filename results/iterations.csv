@@ -48,3 +48,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 49,relu-mlp,175020,0.844,0.844,0.536327832698822,88.1,ok,
 51,binarymoe-baseline-4experts,100052,0.721,0.721,0.9301847157478332,38.4,ok,
 52,8experts-top2,196504,0.661,0.661,0.9330188875198364,63.6,ok,
+53,wider-experts-bw32,380564,0.876,0.876,0.46539394903182985,74.6,ok,

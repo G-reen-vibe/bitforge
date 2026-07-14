@@ -77,7 +77,7 @@ def run_round(round_num: int, tag: str, model_kwargs: dict | None = None,
             num_classes=info.num_classes,
             num_experts=4,
             topk=2,
-            base_width=16,
+            base_width=32,
             gate_noise=1.0,
         )
     else:
