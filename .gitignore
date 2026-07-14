@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Data caches & downloads
+data/
+datasets/
+*.pt
+*.pth
+*.ckpt
+*.npz
+
+# Experiment outputs (large)
+results/checkpoints/*
+results/logs/*
+results/metrics/*
+!results/checkpoints/.gitkeep
+!results/logs/.gitkeep
+!results/metrics/.gitkeep
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Wandb / TensorBoard
+wandb/
+runs/
+events.out.tfevents.*
+
+# Jupyter
+.ipynb_checkpoints/

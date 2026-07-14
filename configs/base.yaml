@@ -1,0 +1,30 @@
+# Base config: defaults inherited by all dataset configs
+# Real configs live in configs/{mnist,cifar10,cifar100}/ and override these.
+
+data:
+  root: ./data
+  batch_size: 128
+  test_batch_size: 256
+  num_workers: 0
+  augment: light
+
+train:
+  epochs: 100
+  optimizer: adam
+  lr: 0.001
+  weight_decay: 0.0
+  scheduler: cosine
+  lr_min: 0.0
+  grad_clip: 0.0
+  milestones: [60, 120]
+  gamma: 0.1
+  step_size: 30
+  ede_start_slope: 2.0   # IR-Net EDE
+  ede_end_slope: 8.0
+
+runtime:
+  device: cpu
+  num_threads: 2
+  log_every: 50
+  time_budget_s: 0   # 0 = unlimited
+  tag: ""

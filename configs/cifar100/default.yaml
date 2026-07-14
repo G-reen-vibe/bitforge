@@ -1,0 +1,33 @@
+# CIFAR-100: same architecture, just 100 classes.
+# Tighter time budget since it's more compute-heavy.
+
+data:
+  name: cifar100
+  root: ./data
+  batch_size: 128
+  test_batch_size: 256
+  num_workers: 0
+  augment: light
+
+model:
+  name: hyper_lut
+  hv_dim: 2048
+  k: 4
+  num_luts: 32
+  num_blocks: 4
+
+train:
+  epochs: 50
+  optimizer: adam
+  lr: 0.001
+  weight_decay: 0.0001
+  scheduler: cosine
+  lr_min: 0.0
+  grad_clip: 1.0
+
+runtime:
+  device: cpu
+  num_threads: 2
+  log_every: 50
+  time_budget_s: 3600
+  tag: ""

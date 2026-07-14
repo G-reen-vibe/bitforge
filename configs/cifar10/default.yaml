@@ -1,0 +1,33 @@
+# CIFAR-10: medium-size config. CPU-friendly (2 threads, 4GB RAM).
+# Smaller widths + fewer epochs than typical paper configs.
+
+data:
+  name: cifar10
+  root: ./data
+  batch_size: 128
+  test_batch_size: 256
+  num_workers: 0
+  augment: light
+
+model:
+  name: hyper_lut
+  hv_dim: 2048
+  k: 4
+  num_luts: 32
+  num_blocks: 4
+
+train:
+  epochs: 50
+  optimizer: adam
+  lr: 0.001
+  weight_decay: 0.0001
+  scheduler: cosine
+  lr_min: 0.0
+  grad_clip: 1.0
+
+runtime:
+  device: cpu
+  num_threads: 2
+  log_every: 50
+  time_budget_s: 3600   # 1h cap per run
+  tag: ""
