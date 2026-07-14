@@ -126,13 +126,12 @@ class LUTBlock(nn.Module):
         self.n_groups = (hv_dim - k) // self.stride + 1
         # output dim per block: n_groups * num_luts
         self.out_dim = self.n_groups * num_luts
-        self.lut = DifferentiableLUT(k=k, num_luts=num_luts)
-        # Binary projection back to hv_dim. We use BinaryLinear (±1 weights, STE).
-        # This keeps the entire block binary at inference.
-        from bitforge.models.baselines.layers import BinaryLinear
-        self.proj = BinaryLinear(self.out_dim, hv_dim, bias=False, scale=False)
-        # init latent weights from N(0, 1) so initial sign is roughly balanced
-        nn.init.normal_(self.proj.weight, mean=0.0, std=1.0)
+        self.lut = DifferentiableLUT(k=k, num_luts=num_luts, hard=False)
+        # FP projection back to hv_dim (kept FP for stability during Gumbel training,
+        # will be binarized at inference via sign() — see forward()).
+        # Small init (std = 1/sqrt(out_dim)) keeps initial outputs in unit range.
+        self.proj = nn.Linear(self.out_dim, hv_dim, bias=False)
+        nn.init.normal_(self.proj.weight, mean=0.0, std=1.0 / (self.out_dim ** 0.5))
         # fixed permutation (HDC orthogonal reorder)
         self.permute = permute
         if permute:
