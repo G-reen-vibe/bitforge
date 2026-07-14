@@ -61,3 +61,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 64,deeper-gate,984052,0.88,0.862,0.3950910074710846,101.2,ok,
 65,k5-first-two-convs,1104532,0.945,0.944,0.2041814388036728,119.4,ok,
 66,max-plus-avg-pool,971412,0.925,0.925,0.34937606859207154,96.1,ok,
+67,gelu-experts,971412,0.938,0.921,0.21651919770240785,105.9,ok,

@@ -54,9 +54,9 @@ class TinyBinaryExpert(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if not self.skip_first_fp:
-            x = F.relu(self.bn1(self.conv1(x)))
-        x = F.relu(self.bn2(self.conv2(x)))
-        x = F.relu(self.bn3(self.conv3(x)))
-        x = F.relu(self.bn4(self.conv4(x)))
+            x = F.gelu(self.bn1(self.conv1(x)))
+        x = F.gelu(self.bn2(self.conv2(x)))
+        x = F.gelu(self.bn3(self.conv3(x)))
+        x = F.gelu(self.bn4(self.conv4(x)))
         x = F.adaptive_avg_pool2d(x, 1).flatten(1)
         return self.fc(x)
