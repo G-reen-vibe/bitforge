@@ -52,3 +52,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 54,top1-routing,380564,0.754,0.754,0.7728902802467347,73.2,ok,
 55,top3-routing,380564,0.795,0.791,0.6454464430809022,70.8,ok,
 56,gate-noise-0.5,380564,0.854,0.854,0.49243893766403196,72.6,ok,
+57,deeper-experts-4conv,971412,0.935,0.908,0.28684127306938173,100.3,ok,

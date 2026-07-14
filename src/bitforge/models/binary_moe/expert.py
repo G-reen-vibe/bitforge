@@ -33,11 +33,13 @@ class TinyBinaryExpert(nn.Module):
         # FP first conv (per Bi-Real/XNOR-Net: keep first conv FP)
         self.conv1 = nn.Conv2d(in_channels, base_width, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(base_width)
-        # Binary conv layers
+        # Binary conv layers (4 total instead of 3)
         self.conv2 = BinaryConv2d(base_width, base_width * 2, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(base_width * 2)
         self.conv3 = BinaryConv2d(base_width * 2, base_width * 4, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn3 = nn.BatchNorm2d(base_width * 4)
+        self.conv4 = BinaryConv2d(base_width * 4, base_width * 4, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn4 = nn.BatchNorm2d(base_width * 4)
         # Binary linear classifier
         self.fc = BinaryLinear(base_width * 4, num_classes, bias=False)
         self._bit_width = 1
@@ -46,5 +48,6 @@ class TinyBinaryExpert(nn.Module):
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
+        x = F.relu(self.bn4(self.conv4(x)))
         x = F.adaptive_avg_pool2d(x, 1).flatten(1)
         return self.fc(x)
