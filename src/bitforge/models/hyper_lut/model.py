@@ -73,7 +73,9 @@ class HyperLUTNet(nn.Module):
         self.norms = nn.ModuleList([BitNorm(hv_dim) for _ in range(num_blocks)])
         # Binary linear readout
         self.fc = BinaryLinear(hv_dim, num_classes, bias=False, scale=False)
-        # FP readout is also supported via a flag, but default is binary
+        # Fixed logit scale: 1/sqrt(D) keeps logits in unit-variance range
+        # when hv is ±1 and fc weights are ±1 (dot product has std ~sqrt(D)).
+        self.register_buffer("logit_scale", torch.tensor(1.0 / (hv_dim ** 0.5)))
         for m in [self.fc]:
             m._bit_width = 1
 
@@ -106,7 +108,7 @@ class HyperLUTNet(nn.Module):
             hv = hv_bin + (hv - hv.detach())
         else:
             hv = torch.sign(hv)
-        return self.fc(hv)
+        return self.logit_scale * self.fc(hv)
 
     def extra_repr(self) -> str:
         return f"hv_dim={self.hv_dim}, num_blocks={self.num_blocks}"
