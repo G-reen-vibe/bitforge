@@ -84,6 +84,44 @@ def run_round(round_num: int, tag: str, model_kwargs: dict | None = None) -> dic
         num_threads=2,
     )
 
+    # If the model has a regularization_loss, monkey-patch the trainer's
+    # _train_epoch to add it to the loss.
+    if hasattr(model, "regularization_loss"):
+        _orig_train_epoch = trainer._train_epoch
+        def _patched_train_epoch(epoch):
+            # we need to re-run the loop with the extra loss — easiest is to
+            # patch the model forward to add the reg loss to a buffer attribute
+            # that we read after backward. But to keep it simple, we just
+            # add the reg loss to each batch's loss inside the loop.
+            # Reimplement the loop here.
+            model.train()
+            import time as _time
+            t0 = _time.time()
+            total_loss = 0.0
+            total_correct = 0
+            total_n = 0
+            for step, (xb, yb) in enumerate(trainer.train_loader, 1):
+                xb = xb.to(trainer.device); yb = yb.to(trainer.device)
+                optim.zero_grad(set_to_none=True)
+                logits = model(xb)
+                loss = trainer.criterion(logits, yb) + 0.01 * model.regularization_loss()
+                loss.backward()
+                optim.step()
+                bs = yb.size(0)
+                total_loss += loss.item() * bs
+                total_correct += (logits.argmax(1) == yb).sum().item()
+                total_n += bs
+                trainer.global_step += 1
+                if step % trainer.log_every == 0 or step == len(trainer.train_loader):
+                    trainer.logger.info(
+                        f"[ep {epoch} step {step}/{len(trainer.train_loader)}] "
+                        f"loss={loss.item():.4f} acc={total_correct/total_n:.4f} "
+                        f"t={_time.time()-trainer.start_time:.0f}s"
+                    )
+            dt = _time.time() - t0
+            return {"loss": total_loss/max(1,total_n), "top1": total_correct/max(1,total_n), "time_s": dt}
+        trainer._train_epoch = _patched_train_epoch
+
     t0 = time.time()
     try:
         result = trainer.fit(epochs=ITER_EPOCHS)
