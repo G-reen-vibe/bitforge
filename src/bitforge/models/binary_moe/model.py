@@ -60,7 +60,6 @@ class BinaryMoE(nn.Module):
         gates, expert_idx = self.gate(x)  # (N, E), (N, topk)
         expert_logits = torch.stack([e(x) for e in self.experts], dim=1)  # (N, E, C)
         out = (gates.unsqueeze(-1) * expert_logits).sum(dim=1)  # (N, C)
-        # stash gates for load-balance loss
         self._last_gates = gates
         return out
 
