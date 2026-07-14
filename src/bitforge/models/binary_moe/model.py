@@ -27,14 +27,27 @@ class BinaryMoE(nn.Module):
         topk: int = 2,
         base_width: int = 16,
         gate_noise: float = 1.0,
+        shared_stem: bool = False,
     ):
         super().__init__()
         self.num_experts = num_experts
         self.topk = topk
-        self.gate = TopKGate(in_channels, img_size, num_experts, topk)
+        self.shared_stem = shared_stem
+        if shared_stem:
+            # Shared FP conv stem before experts (experts then take this as input)
+            self.stem = nn.Sequential(
+                nn.Conv2d(in_channels, base_width, kernel_size=3, stride=1, padding=1, bias=False),
+                nn.BatchNorm2d(base_width),
+                nn.ReLU(),
+            )
+            expert_in = base_width
+        else:
+            expert_in = in_channels
+        self.gate = TopKGate(expert_in, img_size, num_experts, topk)
         self.gate.gate_noise = gate_noise
         self.experts = nn.ModuleList([
-            TinyBinaryExpert(in_channels, num_classes, base_width)
+            TinyBinaryExpert(expert_in, num_classes, base_width,
+                             skip_first_fp=shared_stem)
             for _ in range(num_experts)
         ])
         for e in self.experts:
@@ -42,14 +55,10 @@ class BinaryMoE(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """x: (N, C, H, W) -> logits: (N, num_classes)"""
+        if self.shared_stem:
+            x = self.stem(x)
         gates, expert_idx = self.gate(x)  # (N, E), (N, topk)
-        N = x.size(0)
-        # Compute logits for ALL experts (vectorized — for training we just run all)
-        # At inference, only top-k would run per sample. For training simplicity,
-        # we compute all experts' outputs and weight by gates.
-        # This is wasteful but correct; sparse dispatch is more complex.
         expert_logits = torch.stack([e(x) for e in self.experts], dim=1)  # (N, E, C)
-        # weighted sum: gates (N, E, 1) * expert_logits (N, E, C) -> sum over E
         out = (gates.unsqueeze(-1) * expert_logits).sum(dim=1)  # (N, C)
         return out
 
