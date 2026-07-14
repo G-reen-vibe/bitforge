@@ -70,26 +70,21 @@ class DifferentiableLUT(nn.Module):
         """
         # Convert ±1 binary to {0,1} bits, then to integer index in [0, 2^k)
         bits = (x_k > 0).long()  # (..., k)
-        # Compute integer index: bit i contributes 2^i (MSB-first or LSB-first?)
-        # We use MSB-first to match standard truth-table indexing.
         *leading, k_dim = bits.shape
-        # weights for index computation: 2^(k-1), 2^(k-2), ..., 1
         weights = (1 << torch.arange(k_dim - 1, -1, -1, device=bits.device)).long()
         idx = (bits * weights).sum(dim=-1)  # (...,)
         # Gather logits at this index: shape (..., num_luts)
-        # logits: (num_luts, 2^k) -> transpose -> (2^k, num_luts)
         gathered = self.logits.t()[idx]  # (..., num_luts)
-        # Use tanh + STE for binarization (simpler than 2-way Gumbel, more
-        # stable gradients). The temperature scales the logit before tanh.
+        # Use tanh + STE for binarization.
+        # Additionally, add a small noise during training to help exploration.
         if self.training:
             scaled = gathered / self.temperature
-            out = torch.tanh(scaled)
-            # STE: forward is tanh, backward is identity (clipped)
-            # This is the standard surrogate for sign()
+            # Add small Gaussian noise for exploration (annealed with temp)
+            noise = torch.randn_like(scaled) * 0.1 * self.temperature
+            out = torch.tanh(scaled + noise)
             out_bin = torch.sign(out)
             return out_bin + (out - out.detach())
         else:
-            # at eval: hard binarize
             return torch.sign(gathered)
 
 
