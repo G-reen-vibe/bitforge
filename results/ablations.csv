@@ -10,3 +10,8 @@ round,tag,ablation,params,bits,best_top1,final_top1,final_loss,time_s,status,err
 16,single-6conv-bw16,single_arch,135024,4320768,0.941,0.941,0.203743173122406,22.0,ok,
 17,single-6conv-bw24,single_arch,302760,9688320,0.924,0.924,0.22574837708473205,36.1,ok,
 18,single-6conv-bw32-confirm,single_arch,537312,17193984,0.963,0.963,0.11161701118946075,50.6,ok,
+19,single-6conv-k5,single_arch,1488096,47619072,0.945,0.919,0.24962961912155152,82.5,ok,
+20,single-6conv-no-augment,single_arch,537312,17193984,0.963,0.963,0.11161701118946075,48.5,ok,
+20,single-6conv-no-augment,single_arch,537312,17193984,0.952,0.945,0.1899184901714325,47.7,ok,
+21,fp-cnn-same-arch,fp_vs_binary,537312,17193984,0.974,0.968,0.11825334471464156,49.6,ok,
+22,binary-all-binary-no-fp,fp_vs_binary,537312,537312,0.959,0.959,0.12931041491031647,52.0,ok,
