@@ -47,7 +47,7 @@ def run_round(round_num: int, tag: str, model_kwargs: dict | None = None,
     info = DATASET_INFO["mnist"]
 
     # Cache datasets on first run
-    train_ds = build_dataset("mnist", root=DATA_ROOT, train=True, augment="none")
+    train_ds = build_dataset("mnist", root=DATA_ROOT, train=True, augment="light")
     test_ds = build_dataset("mnist", root=DATA_ROOT, train=False, augment="none")
     train_subset = Subset(train_ds, list(range(ITER_TRAIN_N)))
     test_subset = Subset(test_ds, list(range(ITER_TEST_N)))
