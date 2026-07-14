@@ -91,12 +91,21 @@ class HyperLUTNet(nn.Module):
         return init_t + (min_t - init_t) * progress
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        hv = self.encoder(x)  # (N, D) binary
+        hv = self.encoder(x)  # (N, D) binary ±1
         for blk, norm in zip(self.blocks, self.norms):
-            hv_new = blk(hv)
-            hv_new = norm(hv_new)
-            # residual on the HV (add then re-binarize)
-            hv = torch.sign(hv + hv_new)
+            # blk returns binary ±1 in eval, soft in train; norm scales it.
+            # We do residual in FP space (pre-binarization) by re-applying
+            # the LUT forward in "soft" mode. To keep it simple, we use
+            # tanh-bounded residual: hv = tanh(hv + norm(blk(hv)))
+            # which keeps hv in (-1, 1) and is differentiable.
+            hv_new = norm(blk(hv))
+            hv = torch.tanh(hv + hv_new)
+        # final binarization for the readout (STE)
+        if self.training:
+            hv_bin = torch.sign(hv)
+            hv = hv_bin + (hv - hv.detach())
+        else:
+            hv = torch.sign(hv)
         return self.fc(hv)
 
     def extra_repr(self) -> str:
