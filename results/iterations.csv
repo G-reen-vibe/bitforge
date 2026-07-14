@@ -5,3 +5,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 4,binary-proj-fixed-logit-scale,2103808,0.37,0.37,1.8672706022262573,24.5,ok,
 5,fp-proj-small-init-soft-gumbel,2103808,0.726,0.726,0.9698655891418457,16.2,ok,
 6,learnable-encoder,2505216,0.823,0.823,0.5657588634490966,17.5,ok,
+7,"gentler-temp-schedule-n(0,1)-init",2505216,0.899,0.899,0.3372001624107361,16.3,ok,

@@ -38,9 +38,9 @@ class DifferentiableLUT(nn.Module):
         self,
         k: int = 4,
         num_luts: int = 64,
-        init_temp: float = 2.0,
-        min_temp: float = 0.1,
-        hard: bool = True,
+        init_temp: float = 1.0,
+        min_temp: float = 0.3,
+        hard: bool = False,
     ):
         super().__init__()
         assert 1 <= k <= 8, f"k={k} too large (2^k entries)"
@@ -49,8 +49,8 @@ class DifferentiableLUT(nn.Module):
         self.table_size = 2 ** k
         self.hard = hard
         # logits for each entry of each LUT: shape (num_luts, 2^k)
-        # init to small random values (centered -> sign = +1/-1 equally likely)
-        self.logits = nn.Parameter(torch.randn(num_luts, self.table_size) * 0.1)
+        # init to N(0, 1) so initial soft outputs are not too close to 0
+        self.logits = nn.Parameter(torch.randn(num_luts, self.table_size))
         # temperature is a buffer (managed externally by the trainer)
         self.register_buffer("temperature", torch.tensor(float(init_temp)))
         self.min_temp = float(min_temp)

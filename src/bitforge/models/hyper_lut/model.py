@@ -87,8 +87,8 @@ class HyperLUTNet(nn.Module):
             blk.set_temperature(temp)
 
     def get_temperature_schedule(self, epoch: int, total_epochs: int) -> float:
-        """Linear anneal from init_temp (2.0) to min_temp (0.1) over training."""
-        init_t, min_t = 2.0, 0.1
+        """Linear anneal from init_temp (1.0) to min_temp (0.3) over training."""
+        init_t, min_t = 1.0, 0.3
         if total_epochs <= 1:
             return min_t
         progress = min(epoch / max(1, total_epochs - 1), 1.0)
