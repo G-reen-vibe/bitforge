@@ -46,7 +46,7 @@ class TinyBinaryExpert(nn.Module):
             self.bn2 = nn.BatchNorm2d(base_width * 2)
         self.conv3 = BinaryConv2d(base_width * 2, base_width * 4, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn3 = nn.BatchNorm2d(base_width * 4)
-        # conv4 is now residual: same channels, stride=1
+        # Two binary convs at the deepest level (more capacity at the end)
         self.conv4 = BinaryConv2d(base_width * 4, base_width * 4, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn4 = nn.BatchNorm2d(base_width * 4)
         self.fc = BinaryLinear(base_width * 4, num_classes, bias=False)
