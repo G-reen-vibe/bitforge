@@ -15,3 +15,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 14,fp-proj-in-readout,2511360,0.886,0.88,0.3726813769340515,18.1,ok,
 15,tanh-ste-lut-no-gumbel,2506240,0.884,0.878,0.4180463597774506,8.7,ok,
 16,tanh-ste-with-noise,2506240,0.892,0.892,0.3697376184463501,9.0,ok,
+17,overlapping-groups-stride-k/2,4587008,0.893,0.893,0.3895182058811188,16.3,ok,

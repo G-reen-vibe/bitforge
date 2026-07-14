@@ -171,7 +171,7 @@ class LUTBlock(nn.Module):
         self.k = k
         self.num_luts = num_luts
         self.stride = stride or k
-        assert (hv_dim - k) % self.stride == 0 or hv_dim >= k, "HV dim must accommodate stride"
+        assert hv_dim >= k, "HV dim must be >= k"
         self.n_groups = (hv_dim - k) // self.stride + 1
         # output dim per block: n_groups * num_luts
         self.out_dim = self.n_groups * num_luts
