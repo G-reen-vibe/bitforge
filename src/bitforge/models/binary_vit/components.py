@@ -45,24 +45,36 @@ def sign_poly(x: torch.Tensor, p: float = 2.0) -> torch.Tensor:
 # Binary linear: weights binarized to ±1
 # -----------------------------------------------------------------------------
 class BinaryLinear(nn.Module):
-    """Linear with weights binarized to ±1 via polynomial surrogate."""
+    """Linear with weights binarized to ±1 via polynomial surrogate.
 
-    def __init__(self, in_features: int, out_features: int, bias: bool = False, p: float = 2.0):
+    Optionally applies a learnable per-output-channel shift (RSign-style)
+    before binarizing.
+    """
+
+    def __init__(self, in_features: int, out_features: int, bias: bool = False,
+                 p: float = 2.0, learnable_shift: bool = False):
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.p = p
         self.weight = nn.Parameter(torch.empty(out_features, in_features))
         self.bias = nn.Parameter(torch.zeros(out_features)) if bias else None
-        # init with kaiming, but small std so initial binarization is not too random
         nn.init.kaiming_normal_(self.weight, mode="fan_out", nonlinearity="relu")
+        # learnable per-output-channel shift (like ReActNet RSign)
+        self.shift = nn.Parameter(torch.zeros(out_features)) if learnable_shift else None
         self._bit_width = 1
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.training:
-            w_b = sign_poly(self.weight, p=self.p)
+            w = self.weight
+            if self.shift is not None:
+                w = w - self.shift.view(-1, 1)
+            w_b = sign_poly(w, p=self.p)
         else:
-            w_b = torch.sign(self.weight)
+            w = self.weight
+            if self.shift is not None:
+                w = w - self.shift.view(-1, 1)
+            w_b = torch.sign(w)
         return F.linear(x, w_b, bias=self.bias)
 
 
@@ -153,16 +165,16 @@ class BinarySelfAttention(nn.Module):
     """
 
     def __init__(self, embed_dim: int = 128, num_heads: int = 4, dropout: float = 0.0,
-                 topk: int = None, scale_init: float = None):
+                 topk: int = None, scale_init: float = None, learnable_shift: bool = False):
         super().__init__()
         assert embed_dim % num_heads == 0
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.head_dim = embed_dim // num_heads
-        self.q_proj = BinaryLinear(embed_dim, embed_dim, bias=False)
-        self.k_proj = BinaryLinear(embed_dim, embed_dim, bias=False)
-        self.v_proj = BinaryLinear(embed_dim, embed_dim, bias=False)
-        self.out_proj = BinaryLinear(embed_dim, embed_dim, bias=False)
+        self.q_proj = BinaryLinear(embed_dim, embed_dim, bias=False, learnable_shift=learnable_shift)
+        self.k_proj = BinaryLinear(embed_dim, embed_dim, bias=False, learnable_shift=learnable_shift)
+        self.v_proj = BinaryLinear(embed_dim, embed_dim, bias=False, learnable_shift=learnable_shift)
+        self.out_proj = BinaryLinear(embed_dim, embed_dim, bias=False, learnable_shift=learnable_shift)
         self.dropout = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
         # Learnable temperature: init to 1/head_dim (much smaller than 1/sqrt(head_dim))
         # because binary QK product variance is ~head_dim (not 1)
