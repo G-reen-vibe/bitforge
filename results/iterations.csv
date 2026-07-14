@@ -27,3 +27,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 27,binaryvit-topk4,70986,0.32,0.31,1.8575969104766845,24.44047474861145,ok,
 28,binaryvit-learnable-scale,70988,0.415,0.415,1.6046022987365722,19.2,ok,
 29,fp-patch-embed,70988,0.573,0.542,1.3106132068634033,19.2,ok,
+30,cls-token,71116,0.454,0.454,1.586279191017151,18.6,ok,

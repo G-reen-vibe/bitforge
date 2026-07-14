@@ -57,7 +57,6 @@ class BinaryViT(nn.Module):
             self.fc = TernaryLinear(embed_dim, num_classes, bias=True)
         else:
             self.fc = BinaryLinear(embed_dim, num_classes, bias=True)
-        # logit scale to keep logits in unit-variance range
         self.register_buffer("logit_scale", torch.tensor(1.0 / (embed_dim ** 0.5)))
         for m in [self.patch_embed, self.fc] + list(self.blocks):
             m._bit_width = 1
