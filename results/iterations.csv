@@ -40,3 +40,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 40,3-layer-conv-stem,191404,0.857,0.857,0.471567786693573,88.3,ok,
 42,dropout-0.1-with-stem,191404,0.787,0.787,0.650920934677124,127.4,ok,
 42,wider-2-layer-stem,173196,0.794,0.794,0.6081730704307556,75.3,ok,
+43,weight-decay-1e-4,191404,0.776,0.709,0.8430212726593017,90.2,ok,
