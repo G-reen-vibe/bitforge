@@ -65,7 +65,7 @@ def run_round(round_num: int, tag: str, model_kwargs: dict | None = None,
             embed_dim=64,
             depth=2,
             num_heads=4,
-            mlp_ratio=2.0,
+            mlp_ratio=1.0,
             dropout=0.0,
             ternary_mlp=False,
         )
