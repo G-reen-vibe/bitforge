@@ -23,3 +23,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 22,k8-mega-lut-4-luts,672768,0.864,0.864,0.438416805267334,3.7,ok,
 23,k3-tiny-lut-24-luts,4586880,0.905,0.896,0.32640045309066773,17.0,ok,
 24,k2-tiny-lut-32-luts,8797440,0.906,0.893,0.33139674305915834,26.5,ok,
+26,binaryvit-baseline,70986,0.305,0.305,1.914567931175232,33.2,ok,

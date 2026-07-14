@@ -40,7 +40,8 @@ DATA_ROOT = "./data"
 RESULTS_CSV = os.path.join(HERE, "..", "results", "iterations.csv")
 
 
-def run_round(round_num: int, tag: str, model_kwargs: dict | None = None, distill: bool = False) -> dict:
+def run_round(round_num: int, tag: str, model_kwargs: dict | None = None,
+              distill: bool = False, model_name: str = "hyper_lut") -> dict:
     """Run one iteration round. Returns a results dict."""
     set_seed(ITER_SEED)
     info = DATASET_INFO["mnist"]
@@ -53,21 +54,39 @@ def run_round(round_num: int, tag: str, model_kwargs: dict | None = None, distil
     train_loader = DataLoader(train_subset, batch_size=ITER_BATCH, shuffle=True)
     test_loader = DataLoader(test_subset, batch_size=ITER_BATCH, shuffle=False)
 
-    # Default model kwargs (the "round 0" baseline) — can be overridden
-    defaults = dict(
-        in_channels=info.in_channels,
-        num_classes=info.num_classes,
-        img_size=info.img_size,
-        hv_dim=512,
-        k=4,
-        num_luts=16,
-        num_blocks=2,
-        encoder_seed=42,
-        binarize_input=False,
-    )
+    # Default model kwargs — depend on which model
+    if model_name == "binary_vit":
+        from bitforge.models.binary_vit import BinaryViT
+        defaults = dict(
+            img_size=info.img_size,
+            in_channels=info.in_channels,
+            num_classes=info.num_classes,
+            patch_size=4,
+            embed_dim=64,
+            depth=2,
+            num_heads=4,
+            mlp_ratio=2.0,
+            dropout=0.0,
+        )
+    else:
+        defaults = dict(
+            in_channels=info.in_channels,
+            num_classes=info.num_classes,
+            img_size=info.img_size,
+            hv_dim=512,
+            k=4,
+            num_luts=16,
+            num_blocks=2,
+            encoder_seed=42,
+            binarize_input=False,
+        )
     if model_kwargs:
         defaults.update(model_kwargs)
-    model = HyperLUTNet(**defaults)
+
+    if model_name == "binary_vit":
+        model = BinaryViT(**defaults)
+    else:
+        model = HyperLUTNet(**defaults)
     n_params = sum(p.numel() for p in model.parameters())
 
     optim = torch.optim.Adam(model.parameters(), lr=ITER_LR)
@@ -229,6 +248,7 @@ def main():
     p.add_argument("--distill", action="store_true", default=False)
     p.add_argument("--spatial", action="store_true", default=False)
     p.add_argument("--drop-path", type=float, default=0.0)
+    p.add_argument("--model", type=str, default="hyper_lut", choices=["hyper_lut", "binary_vit"])
     args = p.parse_args()
 
     mk = {}
@@ -242,7 +262,8 @@ def main():
     if args.drop_path > 0: mk["drop_path"] = args.drop_path
 
     print(f"\n=== ROUND {args.round}: {args.tag} ===")
-    row = run_round(args.round, args.tag, model_kwargs=mk or None, distill=args.distill)
+    row = run_round(args.round, args.tag, model_kwargs=mk or None,
+                    distill=args.distill, model_name=args.model)
     append_csv(row)
     print(f"\n=== RESULT: top1={row['best_top1']:.4f} loss={row['final_loss']:.4f} "
           f"time={row['time_s']}s status={row['status']} ===")
