@@ -60,14 +60,25 @@ class BinaryMoE(nn.Module):
         gates, expert_idx = self.gate(x)  # (N, E), (N, topk)
         expert_logits = torch.stack([e(x) for e in self.experts], dim=1)  # (N, E, C)
         out = (gates.unsqueeze(-1) * expert_logits).sum(dim=1)  # (N, C)
+        # stash gates for load-balance loss
+        self._last_gates = gates
         return out
 
     def load_balance_loss(self) -> torch.Tensor:
-        """Auxiliary loss to encourage balanced expert usage.
+        """Standard MoE load-balancing loss.
 
-        Standard MoE load-balancing: minimize (fraction_of_tokens_per_expert *
-        mean_gate_prob_per_expert).sum()
+        L = E * sum_i (f_i * P_i) where:
+          f_i = fraction of tokens routed to expert i
+          P_i = mean gate prob for expert i
+        Minimizing this encourages uniform usage.
         """
-        # We don't have access to the gates here without re-running the gate,
-        # so we approximate by returning 0. Caller can pass gates if needed.
-        return torch.tensor(0.0, device=next(self.parameters()).device)
+        if not hasattr(self, "_last_gates") or self._last_gates is None:
+            return torch.tensor(0.0, device=next(self.parameters()).device)
+        gates = self._last_gates  # (N, E)
+        N, E = gates.shape
+        # f_i = fraction of tokens where expert i is in topk
+        # (gates > 0 means expert was selected)
+        f = (gates > 0).float().mean(dim=0)  # (E,)
+        # P_i = mean gate prob for expert i
+        P = gates.mean(dim=0)  # (E,)
+        return E * (f * P).sum()
