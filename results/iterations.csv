@@ -12,3 +12,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 11,pre-bias-lut-block,2506240,0.899,0.899,0.3372001624107361,18.8,ok,
 12,learnable-mix-alpha,2506242,0.889,0.879,0.5782736930847168,15.7,ok,
 13,kd-from-fp-teacher,2506242,0.878,0.878,0.46781461095809934,26.4,ok,
+14,fp-proj-in-readout,2511360,0.886,0.88,0.3726813769340515,18.1,ok,

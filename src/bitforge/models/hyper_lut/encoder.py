@@ -76,6 +76,7 @@ class HDCEncoder(nn.Module):
         else:
             hv = torch.sign(proj)
             hv = torch.where(hv == 0, torch.ones_like(hv), hv)
+        self._last_proj = proj  # stash for downstream use (e.g. readout)
         return hv
 
     def extra_repr(self) -> str:

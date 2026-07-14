@@ -84,17 +84,8 @@ class HyperLUTNet(nn.Module):
             ])
         self.multi_k = multi_k
         self.norms = nn.ModuleList([BitNorm(hv_dim) for _ in range(num_blocks)])
-        # Learnable residual mixing: hv = tanh(alpha * hv + (1-alpha) * hv_new)
-        # alpha initialized to 0.5 (equal mixing), can drift toward 0 (full replace)
-        # or 1 (ignore block). Sigmoid keeps it in (0, 1).
-        self.mix_alpha = nn.ParameterList([
-            nn.Parameter(torch.tensor(0.0))  # sigmoid(0) = 0.5
-            for _ in range(num_blocks)
-        ])
         # Binary linear readout
         self.fc = BinaryLinear(hv_dim, num_classes, bias=False, scale=False)
-        # Fixed logit scale: 1/sqrt(D) keeps logits in unit-variance range
-        # when hv is ±1 and fc weights are ±1 (dot product has std ~sqrt(D)).
         self.register_buffer("logit_scale", torch.tensor(1.0 / (hv_dim ** 0.5)))
         for m in [self.fc]:
             m._bit_width = 1
@@ -114,11 +105,9 @@ class HyperLUTNet(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         hv = self.encoder(x)  # (N, D) binary ±1
-        for i, (blk, norm) in enumerate(zip(self.blocks, self.norms)):
+        for blk, norm in zip(self.blocks, self.norms):
             hv_new = norm(blk(hv))
-            alpha = torch.sigmoid(self.mix_alpha[i])
-            # mix in FP space then tanh-bounded
-            hv = torch.tanh(alpha * hv + (1.0 - alpha) * hv_new)
+            hv = torch.tanh(hv + hv_new)
         # final binarization for the readout (STE)
         if self.training:
             hv_bin = torch.sign(hv)
