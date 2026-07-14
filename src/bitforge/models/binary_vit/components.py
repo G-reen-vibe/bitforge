@@ -111,9 +111,11 @@ class TernaryLinear(nn.Module):
 # Binary patch embedding: split image into patches, project each to D-dim binary token
 # -----------------------------------------------------------------------------
 class BinaryPatchEmbed(nn.Module):
-    """Patch embedding: image -> (N, num_patches, D) binary tokens.
+    """Patch embedding: image -> (N, num_patches, D) tokens.
 
-    Uses a strided unfold + binary linear projection.
+    Uses a strided unfold + FP linear projection (the input is real-valued
+    pixels; binarizing here would lose too much info). Binarization happens
+    in the first BinaryLinear inside the ViT blocks.
     """
 
     def __init__(self, img_size: int = 28, patch_size: int = 4, in_channels: int = 1, embed_dim: int = 128):
@@ -124,15 +126,15 @@ class BinaryPatchEmbed(nn.Module):
         self.in_channels = in_channels
         self.embed_dim = embed_dim
         self.num_patches = (img_size // patch_size) ** 2
-        # patch flatten -> binary linear projection
-        self.proj = BinaryLinear(in_channels * patch_size * patch_size, embed_dim, bias=False)
-        self._bit_width = 1
+        # FP patch projection (kept FP — input is real-valued)
+        self.proj = nn.Linear(in_channels * patch_size * patch_size, embed_dim, bias=False)
+        nn.init.normal_(self.proj.weight, std=1.0 / (in_channels * patch_size * patch_size) ** 0.5)
+        self._bit_width = 32  # FP
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """x: (N, C, H, W) -> (N, num_patches, embed_dim)"""
         N, C, H, W = x.shape
         p = self.patch_size
-        # unfold: (N, C, num_patches_h, num_patches_w, p, p)
         x = x.unfold(2, p, p).unfold(3, p, p)  # (N, C, nph, npw, p, p)
         x = x.contiguous().view(N, C, -1, p * p)  # (N, C, num_patches, p*p)
         x = x.permute(0, 2, 1, 3).contiguous()  # (N, num_patches, C, p*p)
