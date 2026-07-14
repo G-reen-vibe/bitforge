@@ -37,46 +37,88 @@ class HDCEncoder(nn.Module):
         seed: int = 42,
         binarize_input: bool = False,
         learnable: bool = False,
+        spatial: bool = False,
+        img_size: int = None,
+        in_channels: int = None,
     ):
         super().__init__()
         self.input_dim = input_dim
         self.hv_dim = hv_dim
         self.binarize_input = binarize_input
-        # generate the random projection matrix with a fixed seed
-        g = torch.Generator()
-        g.manual_seed(seed)
-        # use ±1 random matrix for memory efficiency (vs FP Gaussian)
-        # Each entry: ±1 with equal probability
-        R = torch.randint(0, 2, (input_dim, hv_dim), generator=g, dtype=torch.float32) * 2 - 1
-        # scale by 1/sqrt(input_dim) for variance preservation
-        R = R / (input_dim ** 0.5)
-        if learnable:
-            # Learnable latent projection; will be sign-binarized at inference
-            self.R = nn.Parameter(R)
+        self.spatial = spatial
+        if spatial:
+            assert img_size is not None and in_channels is not None
+            self.img_size = img_size
+            self.in_channels = in_channels
+            # Position HVs: one random ±1 HV per spatial position (H*W of them)
+            g = torch.Generator()
+            g.manual_seed(seed)
+            self.position_hvs = torch.randint(0, 2, (img_size * img_size, hv_dim),
+                                               generator=g, dtype=torch.float32) * 2 - 1
+            # Channel HVs: one random ±1 HV per channel
+            self.channel_hvs = torch.randint(0, 2, (in_channels, hv_dim),
+                                              generator=g, dtype=torch.float32) * 2 - 1
+            self.register_buffer("position_hvs_buf", self.position_hvs)
+            self.register_buffer("channel_hvs_buf", self.channel_hvs)
+            # Learnable per-pixel scale (latent FP, binarized at inference)
+            # This is what gets trained — the binding weight per pixel
+            self.pixel_logits = nn.Parameter(torch.zeros(in_channels * img_size * img_size))
         else:
-            self.register_buffer("R", R)
+            # generate the random projection matrix with a fixed seed
+            g = torch.Generator()
+            g.manual_seed(seed)
+            R = torch.randint(0, 2, (input_dim, hv_dim), generator=g, dtype=torch.float32) * 2 - 1
+            R = R / (input_dim ** 0.5)
+            if learnable:
+                self.R = nn.Parameter(R)
+            else:
+                self.register_buffer("R", R)
         self.learnable = learnable
-        self._bit_width = 1  # output is binary
+        self._bit_width = 1
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """x: (N, C, H, W) -> (N, D) binary hypervector."""
         N = x.size(0)
-        x_flat = x.reshape(N, -1)
-        if self.binarize_input:
-            x_flat = torch.sign(x_flat)
-        # project (FP matmul — this is the only FP op in the model)
-        proj = x_flat @ self.R  # (N, D)
+        if self.spatial:
+            # HDC spatial encoding: for each pixel (c, h, w),
+            #   bind = XOR(channel_hv[c], position_hv[h*W+w])
+            #   scale by pixel intensity (after tanh)
+            # bundle = sum over all pixels
+            C, H, W = self.in_channels, self.img_size, self.img_size
+            x_flat = x.reshape(N, C * H * W)  # (N, C*H*W)
+            # pixel intensity -> tanh-scaled contribution
+            pixel_scale = torch.tanh(x_flat)  # (N, C*H*W)
+            # bind: for each pixel, channel_hv XOR position_hv = channel_hv * position_hv (for ±1)
+            # binding_hvs: (C*H*W, D) = (channel_hvs[:,None] * position_hvs[None,:]) reshaped
+            # Precompute this once
+            if not hasattr(self, "_binding_cache"):
+                # binding_hvs[c*H*W + h*W + w] = channel_hvs[c] * position_hvs[h*W+w]
+                ch = self.channel_hvs_buf.unsqueeze(1)  # (C, 1, D)
+                pos = self.position_hvs_buf.unsqueeze(0)  # (1, HW, D)
+                binding = (ch * pos).reshape(C * H * W, -1)  # (C*H*W, D)
+                self._binding_cache = binding
+            binding = self._binding_cache  # (C*H*W, D)
+            # bundle: sum over pixels, weighted by pixel_scale and pixel_logits
+            # (N, C*H*W) * (C*H*W, D) -> (N, D)
+            # apply learnable per-pixel logit (tanh -> ±1 scale)
+            pixel_weight = torch.tanh(self.pixel_logits)  # (C*H*W,)
+            weighted = pixel_scale * pixel_weight.unsqueeze(0)  # (N, C*H*W)
+            proj = weighted @ binding  # (N, D)
+        else:
+            x_flat = x.reshape(N, -1)
+            if self.binarize_input:
+                x_flat = torch.sign(x_flat)
+            proj = x_flat @ self.R
         # binarize to ±1; use STE if learnable
         if self.training:
             hv = torch.sign(proj)
-            if self.learnable:
+            if self.learnable or self.spatial:
                 hv = hv + (proj - proj.detach())
-            # if any zero (unlikely), set to +1
             hv = torch.where(hv == 0, torch.ones_like(hv), hv)
         else:
             hv = torch.sign(proj)
             hv = torch.where(hv == 0, torch.ones_like(hv), hv)
-        self._last_proj = proj  # stash for downstream use (e.g. readout)
+        self._last_proj = proj
         return hv
 
     def extra_repr(self) -> str:

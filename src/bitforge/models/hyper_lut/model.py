@@ -58,6 +58,7 @@ class HyperLUTNet(nn.Module):
         learnable_encoder: bool = True,
         multi_k: bool = False,
         ks: tuple = (2, 3, 4),
+        spatial_encoder: bool = False,
     ):
         super().__init__()
         self.hv_dim = hv_dim
@@ -69,6 +70,9 @@ class HyperLUTNet(nn.Module):
             seed=encoder_seed,
             binarize_input=binarize_input,
             learnable=learnable_encoder,
+            spatial=spatial_encoder,
+            img_size=img_size,
+            in_channels=in_channels,
         )
         from bitforge.models.hyper_lut.lut_layer import MultiKLUTBlock
         if multi_k:
