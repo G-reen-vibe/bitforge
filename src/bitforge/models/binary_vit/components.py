@@ -208,19 +208,26 @@ class BinarySelfAttention(nn.Module):
 # Binary MLP
 # -----------------------------------------------------------------------------
 class BinaryMLP(nn.Module):
-    """FFN: D -> 4D -> D with binary linear + GELU."""
+    """FFN: D -> hidden -> D with binary linear + activation."""
 
-    def __init__(self, embed_dim: int = 128, hidden_dim: int = None, dropout: float = 0.0):
+    def __init__(self, embed_dim: int = 128, hidden_dim: int = None, dropout: float = 0.0,
+                 activation: str = "gelu"):
         super().__init__()
         hidden_dim = hidden_dim or 4 * embed_dim
         self.fc1 = BinaryLinear(embed_dim, hidden_dim, bias=False)
         self.fc2 = BinaryLinear(hidden_dim, embed_dim, bias=False)
         self.drop = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
+        if activation == "gelu":
+            self.act = F.gelu
+        elif activation == "relu":
+            self.act = F.relu
+        else:
+            raise ValueError(f"Unknown activation: {activation}")
         self._bit_width = 1
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.fc1(x)
-        x = F.gelu(x)
+        x = self.act(x)
         x = self.drop(x)
         x = self.fc2(x)
         return x
