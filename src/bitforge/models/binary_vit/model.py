@@ -42,14 +42,16 @@ class BinaryViT(nn.Module):
         super().__init__()
         self.embed_dim = embed_dim
         self.depth = depth
-        # Hybrid conv stem: first conv FP (critical for input feature extraction),
-        # second conv binary. Compromise between accuracy and bit-width.
+        # Hybrid conv stem: 3 layers — FP, binary, binary
         from bitforge.models.baselines.layers import BinaryConv2d
         self.conv_stem = nn.Sequential(
             nn.Conv2d(in_channels, 32, kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(32),
             nn.GELU(),
-            BinaryConv2d(32, embed_dim, kernel_size=3, stride=1, padding=1, bias=False),
+            BinaryConv2d(32, 64, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.GELU(),
+            BinaryConv2d(64, embed_dim, kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(embed_dim),
             nn.GELU(),
         )

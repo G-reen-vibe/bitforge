@@ -37,3 +37,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 37,fp-conv-stem,154412,0.821,0.821,0.6368155035972595,58.5,ok,
 38,binary-conv-stem,154412,0.764,0.764,0.6796488060951232,54.0,ok,
 39,hybrid-conv-stem,154412,0.829,0.829,0.5199525592327118,58.7,ok,
+40,3-layer-conv-stem,191404,0.857,0.857,0.471567786693573,88.3,ok,
