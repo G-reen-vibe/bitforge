@@ -55,6 +55,7 @@ class HyperLUTNet(nn.Module):
         num_blocks: int = 4,
         encoder_seed: int = 42,
         binarize_input: bool = False,
+        learnable_encoder: bool = True,
     ):
         super().__init__()
         self.hv_dim = hv_dim
@@ -65,6 +66,7 @@ class HyperLUTNet(nn.Module):
             hv_dim=hv_dim,
             seed=encoder_seed,
             binarize_input=binarize_input,
+            learnable=learnable_encoder,
         )
         self.blocks = nn.ModuleList([
             LUTBlock(hv_dim=hv_dim, k=k, num_luts=num_luts, permute=True, seed=encoder_seed + i)

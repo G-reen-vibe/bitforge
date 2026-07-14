@@ -36,6 +36,7 @@ class HDCEncoder(nn.Module):
         hv_dim: int = 4096,
         seed: int = 42,
         binarize_input: bool = False,
+        learnable: bool = False,
     ):
         super().__init__()
         self.input_dim = input_dim
@@ -49,7 +50,12 @@ class HDCEncoder(nn.Module):
         R = torch.randint(0, 2, (input_dim, hv_dim), generator=g, dtype=torch.float32) * 2 - 1
         # scale by 1/sqrt(input_dim) for variance preservation
         R = R / (input_dim ** 0.5)
-        self.register_buffer("R", R)
+        if learnable:
+            # Learnable latent projection; will be sign-binarized at inference
+            self.R = nn.Parameter(R)
+        else:
+            self.register_buffer("R", R)
+        self.learnable = learnable
         self._bit_width = 1  # output is binary
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -60,10 +66,16 @@ class HDCEncoder(nn.Module):
             x_flat = torch.sign(x_flat)
         # project (FP matmul — this is the only FP op in the model)
         proj = x_flat @ self.R  # (N, D)
-        # binarize to ±1
-        hv = torch.sign(proj)
-        # if any zero (unlikely), set to +1
-        hv = torch.where(hv == 0, torch.ones_like(hv), hv)
+        # binarize to ±1; use STE if learnable
+        if self.training:
+            hv = torch.sign(proj)
+            if self.learnable:
+                hv = hv + (proj - proj.detach())
+            # if any zero (unlikely), set to +1
+            hv = torch.where(hv == 0, torch.ones_like(hv), hv)
+        else:
+            hv = torch.sign(proj)
+            hv = torch.where(hv == 0, torch.ones_like(hv), hv)
         return hv
 
     def extra_repr(self) -> str:
