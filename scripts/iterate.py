@@ -69,6 +69,17 @@ def run_round(round_num: int, tag: str, model_kwargs: dict | None = None,
             dropout=0.0,
             ternary_mlp=False,
         )
+    elif model_name == "binary_moe":
+        from bitforge.models.binary_moe import BinaryMoE
+        defaults = dict(
+            in_channels=info.in_channels,
+            img_size=info.img_size,
+            num_classes=info.num_classes,
+            num_experts=4,
+            topk=2,
+            base_width=16,
+            gate_noise=1.0,
+        )
     else:
         defaults = dict(
             in_channels=info.in_channels,
@@ -86,6 +97,8 @@ def run_round(round_num: int, tag: str, model_kwargs: dict | None = None,
 
     if model_name == "binary_vit":
         model = BinaryViT(**defaults)
+    elif model_name == "binary_moe":
+        model = BinaryMoE(**defaults)
     else:
         model = HyperLUTNet(**defaults)
     n_params = sum(p.numel() for p in model.parameters())
@@ -249,7 +262,7 @@ def main():
     p.add_argument("--distill", action="store_true", default=False)
     p.add_argument("--spatial", action="store_true", default=False)
     p.add_argument("--drop-path", type=float, default=0.0)
-    p.add_argument("--model", type=str, default="hyper_lut", choices=["hyper_lut", "binary_vit"])
+    p.add_argument("--model", type=str, default="hyper_lut", choices=["hyper_lut", "binary_vit", "binary_moe"])
     args = p.parse_args()
 
     mk = {}

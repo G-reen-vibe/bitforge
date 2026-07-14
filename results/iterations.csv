@@ -46,3 +46,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 47,mlp-ratio-0.5,166828,0.83,0.83,0.5035378084182739,82.6,ok,
 48,depth-3,199853,0.743,0.743,0.7520097560882568,99.8,ok,
 49,relu-mlp,175020,0.844,0.844,0.536327832698822,88.1,ok,
+51,binarymoe-baseline-4experts,100052,0.721,0.721,0.9301847157478332,38.4,ok,
