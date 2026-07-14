@@ -10,3 +10,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 9,reg-loss-push-to-binary,2505216,0.885,0.87,0.41643810319900515,23.7,ok,
 10,multi-k-lut-block,3244312,0.898,0.888,0.3727277870178223,25.7,ok,
 11,pre-bias-lut-block,2506240,0.899,0.899,0.3372001624107361,18.8,ok,
+12,learnable-mix-alpha,2506242,0.889,0.879,0.5782736930847168,15.7,ok,
