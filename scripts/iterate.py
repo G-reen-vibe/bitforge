@@ -40,7 +40,7 @@ DATA_ROOT = "./data"
 RESULTS_CSV = os.path.join(HERE, "..", "results", "iterations.csv")
 
 
-def run_round(round_num: int, tag: str, model_kwargs: dict | None = None) -> dict:
+def run_round(round_num: int, tag: str, model_kwargs: dict | None = None, distill: bool = False) -> dict:
     """Run one iteration round. Returns a results dict."""
     set_seed(ITER_SEED)
     info = DATASET_INFO["mnist"]
@@ -84,9 +84,61 @@ def run_round(round_num: int, tag: str, model_kwargs: dict | None = None) -> dic
         num_threads=2,
     )
 
-    # If the model has a regularization_loss, monkey-patch the trainer's
-    # _train_epoch to add it to the loss.
-    if hasattr(model, "regularization_loss"):
+    # Distillation: train a tiny FP teacher first, then add KD loss
+    if distill:
+        from bitforge.models.baselines import FPResNet
+        teacher = FPResNet(in_channels=info.in_channels, num_classes=info.num_classes,
+                           img_size=info.img_size, base_width=8, blocks_per_stage=1)
+        teacher_optim = torch.optim.Adam(teacher.parameters(), lr=1e-3)
+        teacher_trainer = Trainer(
+            model=teacher, train_loader=train_loader, test_loader=test_loader,
+            optimizer=teacher_optim, device="cpu", exp_name=f"iter.r{round_num}.teacher",
+            seed=ITER_SEED, output_dir="./results", log_every=100, num_threads=2,
+        )
+        print("Training teacher...")
+        teacher_trainer.fit(epochs=ITER_EPOCHS)
+        teacher.eval()
+        # Patch training loop to use KD loss
+        import torch.nn.functional as Fte
+        import time as _time
+        def _patched_train_epoch(epoch):
+            model.train()
+            t0 = _time.time()
+            total_loss = 0.0
+            total_correct = 0
+            total_n = 0
+            for step, (xb, yb) in enumerate(trainer.train_loader, 1):
+                xb = xb.to(trainer.device); yb = yb.to(trainer.device)
+                optim.zero_grad(set_to_none=True)
+                logits = model(xb)
+                with torch.no_grad():
+                    teacher_logits = teacher(xb)
+                # KD loss: 0.5 * CE(student, y) + 0.5 * KL(student || teacher/2)
+                ce = Fte.cross_entropy(logits, yb)
+                kd = Fte.kl_div(Fte.log_softmax(logits / 2.0, dim=1),
+                                 Fte.softmax(teacher_logits / 2.0, dim=1),
+                                 reduction="batchmean") * 4.0
+                loss = 0.5 * ce + 0.5 * kd
+                loss.backward()
+                optim.step()
+                bs = yb.size(0)
+                total_loss += loss.item() * bs
+                total_correct += (logits.argmax(1) == yb).sum().item()
+                total_n += bs
+                trainer.global_step += 1
+                if step % trainer.log_every == 0 or step == len(trainer.train_loader):
+                    trainer.logger.info(
+                        f"[ep {epoch} step {step}/{len(trainer.train_loader)}] "
+                        f"loss={loss.item():.4f} acc={total_correct/total_n:.4f} "
+                        f"t={_time.time()-trainer.start_time:.0f}s"
+                    )
+            dt = _time.time() - t0
+            return {"loss": total_loss/max(1,total_n), "top1": total_correct/max(1,total_n), "time_s": dt}
+        trainer._train_epoch = _patched_train_epoch
+
+    # If the model has a regularization_loss AND not distilling, monkey-patch
+    # the trainer's _train_epoch to add it to the loss.
+    if hasattr(model, "regularization_loss") and not distill:
         _orig_train_epoch = trainer._train_epoch
         def _patched_train_epoch(epoch):
             # we need to re-run the loop with the extra loss — easiest is to
@@ -174,6 +226,7 @@ def main():
     p.add_argument("--num-blocks", type=int, default=None)
     p.add_argument("--multi-k", action="store_true", default=False)
     p.add_argument("--no-learnable-encoder", action="store_true", default=False)
+    p.add_argument("--distill", action="store_true", default=False)
     args = p.parse_args()
 
     mk = {}
@@ -185,7 +238,7 @@ def main():
     if args.no_learnable_encoder: mk["learnable_encoder"] = False
 
     print(f"\n=== ROUND {args.round}: {args.tag} ===")
-    row = run_round(args.round, args.tag, model_kwargs=mk or None)
+    row = run_round(args.round, args.tag, model_kwargs=mk or None, distill=args.distill)
     append_csv(row)
     print(f"\n=== RESULT: top1={row['best_top1']:.4f} loss={row['final_loss']:.4f} "
           f"time={row['time_s']}s status={row['status']} ===")
