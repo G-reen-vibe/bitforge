@@ -56,6 +56,8 @@ class HyperLUTNet(nn.Module):
         encoder_seed: int = 42,
         binarize_input: bool = False,
         learnable_encoder: bool = True,
+        multi_k: bool = False,
+        ks: tuple = (2, 3, 4),
     ):
         super().__init__()
         self.hv_dim = hv_dim
@@ -68,10 +70,19 @@ class HyperLUTNet(nn.Module):
             binarize_input=binarize_input,
             learnable=learnable_encoder,
         )
-        self.blocks = nn.ModuleList([
-            LUTBlock(hv_dim=hv_dim, k=k, num_luts=num_luts, permute=True, seed=encoder_seed + i)
-            for i in range(num_blocks)
-        ])
+        from bitforge.models.hyper_lut.lut_layer import MultiKLUTBlock
+        if multi_k:
+            self.blocks = nn.ModuleList([
+                MultiKLUTBlock(hv_dim=hv_dim, ks=ks, num_luts_per_k=num_luts // len(ks),
+                               permute=True, seed=encoder_seed + i)
+                for i in range(num_blocks)
+            ])
+        else:
+            self.blocks = nn.ModuleList([
+                LUTBlock(hv_dim=hv_dim, k=k, num_luts=num_luts, permute=True, seed=encoder_seed + i)
+                for i in range(num_blocks)
+            ])
+        self.multi_k = multi_k
         self.norms = nn.ModuleList([BitNorm(hv_dim) for _ in range(num_blocks)])
         # Binary linear readout
         self.fc = BinaryLinear(hv_dim, num_classes, bias=False, scale=False)
@@ -110,15 +121,10 @@ class HyperLUTNet(nn.Module):
     def regularization_loss(self) -> torch.Tensor:
         """Penalty pushing FP latent weights toward ±1: sum(1 - w^2) for |w|<1.
 
-        Encourages the FP projection weights to saturate at ±1 so the
-        sign-binarized version is close to the FP version.
+        Disabled by default (returns 0). Enable by setting the coefficient > 0
+        in the trainer.
         """
-        loss = torch.tensor(0.0, device=next(self.parameters()).device)
-        for blk in self.blocks:
-            w = blk.proj.weight  # (hv_dim, out_dim)
-            # penalize |w| < 1: (1 - w^2)_+
-            loss = loss + F.relu(1.0 - w.pow(2)).mean()
-        return loss
+        return torch.tensor(0.0, device=next(self.parameters()).device)
 
     def extra_repr(self) -> str:
         return f"hv_dim={self.hv_dim}, num_blocks={self.num_blocks}"

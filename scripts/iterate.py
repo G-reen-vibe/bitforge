@@ -172,6 +172,8 @@ def main():
     p.add_argument("--k", type=int, default=None)
     p.add_argument("--num-luts", type=int, default=None)
     p.add_argument("--num-blocks", type=int, default=None)
+    p.add_argument("--multi-k", action="store_true", default=False)
+    p.add_argument("--no-learnable-encoder", action="store_true", default=False)
     args = p.parse_args()
 
     mk = {}
@@ -179,6 +181,8 @@ def main():
     if args.k is not None: mk["k"] = args.k
     if args.num_luts is not None: mk["num_luts"] = args.num_luts
     if args.num_blocks is not None: mk["num_blocks"] = args.num_blocks
+    if args.multi_k: mk["multi_k"] = True
+    if args.no_learnable_encoder: mk["learnable_encoder"] = False
 
     print(f"\n=== ROUND {args.round}: {args.tag} ===")
     row = run_round(args.round, args.tag, model_kwargs=mk or None)

@@ -97,6 +97,64 @@ class DifferentiableLUT(nn.Module):
             return torch.sign(gathered)
 
 
+class MultiKLUTBlock(nn.Module):
+    """A block with PARALLEL LUTs at multiple k values (k=2, 3, 4) for richer
+    feature extraction. Outputs from each k-head are concatenated, then
+    projected back to hv_dim.
+
+    This gives each block multiple "receptive fields" over the input HV.
+    """
+
+    def __init__(
+        self,
+        hv_dim: int,
+        ks: tuple = (2, 3, 4),
+        num_luts_per_k: int = 16,
+        permute: bool = True,
+        seed: int = 42,
+    ):
+        super().__init__()
+        self.hv_dim = hv_dim
+        self.ks = ks
+        self.luts = nn.ModuleList([
+            DifferentiableLUT(k=k, num_luts=num_luts_per_k, hard=False)
+            for k in ks
+        ])
+        # total output dim: sum over k of (n_groups_k * num_luts_per_k)
+        self.n_groups_per_k = [(hv_dim - k) // k + 1 for k in ks]
+        self.out_dim = sum(n * num_luts_per_k for n in self.n_groups_per_k)
+        self.proj = nn.Linear(self.out_dim, hv_dim, bias=False)
+        nn.init.normal_(self.proj.weight, mean=0.0, std=1.0 / (self.out_dim ** 0.5))
+        self.permute = permute
+        if permute:
+            g = torch.Generator()
+            g.manual_seed(seed)
+            perm = torch.randperm(hv_dim, generator=g)
+            self.register_buffer("perm", perm)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        N = x.size(0)
+        outs = []
+        for lut, k, n_groups in zip(self.luts, self.ks, self.n_groups_per_k):
+            groups = x.unfold(1, k, k)  # (N, n_groups, k)
+            out = lut(groups)  # (N, n_groups, num_luts)
+            outs.append(out.reshape(N, -1))
+        out = torch.cat(outs, dim=-1)  # (N, out_dim)
+        out = self.proj(out)  # (N, hv_dim)
+        if self.training:
+            out_bin = torch.sign(out)
+            out = out_bin + (out - out.detach())
+        else:
+            out = torch.sign(out)
+        if self.permute:
+            out = out[:, self.perm]
+        return out
+
+    def set_temperature(self, temp: float) -> None:
+        for lut in self.luts:
+            lut.set_temperature(temp)
+
+
 class LUTBlock(nn.Module):
     """A block: take D-dim HV, apply LUT-bank, bundle back to D-dim HV.
 
