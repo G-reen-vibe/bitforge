@@ -42,7 +42,18 @@ class BinaryViT(nn.Module):
         super().__init__()
         self.embed_dim = embed_dim
         self.depth = depth
-        self.patch_embed = BinaryPatchEmbed(img_size, patch_size, in_channels, embed_dim)
+        # Binary conv stem: 2 FP conv layers to extract local features
+        # before patchification. This is the "early conv" trick from
+        # Xiao et al. (Early Convolutions Help Transformers See Better).
+        self.conv_stem = nn.Sequential(
+            nn.Conv2d(in_channels, 32, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(32),
+            nn.GELU(),
+            nn.Conv2d(32, embed_dim, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(embed_dim),
+            nn.GELU(),
+        )
+        self.patch_embed = BinaryPatchEmbed(img_size, patch_size, embed_dim, embed_dim)
         num_patches = self.patch_embed.num_patches
         # learnable positional embedding
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches, embed_dim))
@@ -64,6 +75,7 @@ class BinaryViT(nn.Module):
             m._bit_width = 1
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.conv_stem(x)  # (N, embed_dim, H, W) — FP local features
         x = self.patch_embed(x)  # (N, L, D)
         x = x + self.pos_embed
         x = self.pos_drop(x)
