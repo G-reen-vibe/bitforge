@@ -42,14 +42,14 @@ class BinaryViT(nn.Module):
         super().__init__()
         self.embed_dim = embed_dim
         self.depth = depth
-        # Binary conv stem: 2 FP conv layers to extract local features
-        # before patchification. This is the "early conv" trick from
-        # Xiao et al. (Early Convolutions Help Transformers See Better).
+        # Binary conv stem: 2 binary conv layers (3x3) to extract local features
+        # before patchification. Weights are ±1; activations are FP (BN+GELU).
+        from bitforge.models.baselines.layers import BinaryConv2d
         self.conv_stem = nn.Sequential(
-            nn.Conv2d(in_channels, 32, kernel_size=3, stride=1, padding=1, bias=False),
+            BinaryConv2d(in_channels, 32, kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(32),
             nn.GELU(),
-            nn.Conv2d(32, embed_dim, kernel_size=3, stride=1, padding=1, bias=False),
+            BinaryConv2d(32, embed_dim, kernel_size=3, stride=1, padding=1, bias=False),
             nn.BatchNorm2d(embed_dim),
             nn.GELU(),
         )
