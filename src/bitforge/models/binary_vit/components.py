@@ -239,26 +239,27 @@ class BinaryLayerNorm(nn.Module):
 # ViT block: LayerNorm -> Attention -> residual -> LayerNorm -> MLP -> residual
 # -----------------------------------------------------------------------------
 class BinaryViTBlock(nn.Module):
-    """Standard ViT block with binary components + residual scaling.
-
-    Scales the attention/MLP output by a learnable gamma (init=0) before adding
-    to the residual. This is "ReZero" style — helps with deep binary nets
-    by making early layers behave like identity.
-    """
+    """Standard ViT block with binary components."""
 
     def __init__(self, embed_dim: int = 128, num_heads: int = 4, mlp_hidden: int = None,
-                 dropout: float = 0.0):
+                 dropout: float = 0.0, ternary_mlp: bool = False):
         super().__init__()
         self.norm1 = BinaryLayerNorm(embed_dim)
         self.attn = BinarySelfAttention(embed_dim, num_heads, dropout)
         self.norm2 = BinaryLayerNorm(embed_dim)
-        self.mlp = BinaryMLP(embed_dim, mlp_hidden, dropout)
-        # ReZero: learnable residual scale, init=0
-        self.gamma1 = nn.Parameter(torch.tensor(0.0))
-        self.gamma2 = nn.Parameter(torch.tensor(0.0))
+        if ternary_mlp:
+            # Use ternary linear in the MLP for sparsity
+            mlp_hidden = mlp_hidden or 4 * embed_dim
+            self.mlp = nn.Sequential(
+                TernaryLinear(embed_dim, mlp_hidden, bias=False),
+                nn.GELU(),
+                TernaryLinear(mlp_hidden, embed_dim, bias=False),
+            )
+        else:
+            self.mlp = BinaryMLP(embed_dim, mlp_hidden, dropout)
         self._bit_width = 1
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x + self.gamma1 * self.attn(self.norm1(x))
-        x = x + self.gamma2 * self.mlp(self.norm2(x))
+        x = x + self.attn(self.norm1(x))
+        x = x + self.mlp(self.norm2(x))
         return x

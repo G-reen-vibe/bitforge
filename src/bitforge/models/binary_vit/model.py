@@ -37,6 +37,7 @@ class BinaryViT(nn.Module):
         mlp_ratio: float = 2.0,
         dropout: float = 0.0,
         ternary_classifier: bool = False,
+        ternary_mlp: bool = False,
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -48,7 +49,8 @@ class BinaryViT(nn.Module):
         nn.init.normal_(self.pos_embed, std=0.02)
         self.pos_drop = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
         self.blocks = nn.ModuleList([
-            BinaryViTBlock(embed_dim, num_heads, int(embed_dim * mlp_ratio), dropout)
+            BinaryViTBlock(embed_dim, num_heads, int(embed_dim * mlp_ratio), dropout,
+                           ternary_mlp=ternary_mlp)
             for _ in range(depth)
         ])
         self.norm = BinaryLayerNorm(embed_dim)
