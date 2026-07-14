@@ -65,3 +65,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 68,augment-light,971412,0.95,0.95,0.16305595254898073,107.2,ok,
 69,label-smoothing-0.1,971412,0.924,0.924,0.3149785053730011,105.4,ok,
 72,lower-expert-lr,971412,0.933,0.933,0.20850476837158202,113.0,ok,
+73,residual-in-expert,971412,0.931,0.927,0.20977701532840728,104.4,ok,

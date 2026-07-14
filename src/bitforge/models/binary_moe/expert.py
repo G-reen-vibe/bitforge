@@ -37,7 +37,6 @@ class TinyBinaryExpert(nn.Module):
         super().__init__()
         self.skip_first_fp = skip_first_fp
         if skip_first_fp:
-            # Skip FP first conv, start with binary conv
             self.conv2 = BinaryConv2d(in_channels, base_width * 2, kernel_size=3, stride=2, padding=1, bias=False)
             self.bn2 = nn.BatchNorm2d(base_width * 2)
         else:
@@ -47,6 +46,7 @@ class TinyBinaryExpert(nn.Module):
             self.bn2 = nn.BatchNorm2d(base_width * 2)
         self.conv3 = BinaryConv2d(base_width * 2, base_width * 4, kernel_size=3, stride=2, padding=1, bias=False)
         self.bn3 = nn.BatchNorm2d(base_width * 4)
+        # conv4 is now residual: same channels, stride=1
         self.conv4 = BinaryConv2d(base_width * 4, base_width * 4, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn4 = nn.BatchNorm2d(base_width * 4)
         self.fc = BinaryLinear(base_width * 4, num_classes, bias=False)
