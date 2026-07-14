@@ -49,6 +49,8 @@ class TinyBinaryExpert(nn.Module):
         # Two binary convs at the deepest level (more capacity at the end)
         self.conv4 = BinaryConv2d(base_width * 4, base_width * 4, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn4 = nn.BatchNorm2d(base_width * 4)
+        self.conv5 = BinaryConv2d(base_width * 4, base_width * 4, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn5 = nn.BatchNorm2d(base_width * 4)
         self.fc = BinaryLinear(base_width * 4, num_classes, bias=False)
         self._bit_width = 1
 
@@ -58,5 +60,6 @@ class TinyBinaryExpert(nn.Module):
         x = F.gelu(self.bn2(self.conv2(x)))
         x = F.gelu(self.bn3(self.conv3(x)))
         x = F.gelu(self.bn4(self.conv4(x)))
+        x = F.gelu(self.bn5(self.conv5(x)))
         x = F.adaptive_avg_pool2d(x, 1).flatten(1)
         return self.fc(x)
