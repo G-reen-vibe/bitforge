@@ -38,3 +38,5 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 38,binary-conv-stem,154412,0.764,0.764,0.6796488060951232,54.0,ok,
 39,hybrid-conv-stem,154412,0.829,0.829,0.5199525592327118,58.7,ok,
 40,3-layer-conv-stem,191404,0.857,0.857,0.471567786693573,88.3,ok,
+42,dropout-0.1-with-stem,191404,0.787,0.787,0.650920934677124,127.4,ok,
+42,wider-2-layer-stem,173196,0.794,0.794,0.6081730704307556,75.3,ok,
