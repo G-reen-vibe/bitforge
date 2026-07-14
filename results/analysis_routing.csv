@@ -1,0 +1,11 @@
+metric,value
+mean_routing_entropy_bits,0.29020531129837035
+max_entropy_bits,2.0
+expert_0_selection_rate,0.0
+expert_0_accuracy_when_selected,0.0
+expert_1_selection_rate,0.0
+expert_1_accuracy_when_selected,0.0
+expert_2_selection_rate,1.0
+expert_2_accuracy_when_selected,0.831
+expert_3_selection_rate,1.0
+expert_3_accuracy_when_selected,0.939
