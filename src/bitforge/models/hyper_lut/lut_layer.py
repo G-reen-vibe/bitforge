@@ -185,6 +185,10 @@ class LUTBlock(nn.Module):
         # output dim per block: n_groups * num_luts
         self.out_dim = self.n_groups * num_luts
         self.lut = DifferentiableLUT(k=k, num_luts=num_luts, hard=False)
+        # Learnable per-coordinate bias (shift) and scale applied BEFORE LUT.
+        # Gives the LUT inputs a learnable offset so the binarization threshold
+        # can shift per coordinate. Similar to ReActNet's RSign.
+        self.pre_bias = nn.Parameter(torch.zeros(hv_dim))
         # FP projection back to hv_dim (kept FP for stability during Gumbel training,
         # will be binarized at inference via sign() — see forward()).
         # Small init (std = 1/sqrt(out_dim)) keeps initial outputs in unit range.
@@ -201,21 +205,26 @@ class LUTBlock(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """x: (N, D) -> (N, D)"""
         N = x.size(0)
+        # apply learnable shift (RSign-style) — shifts the effective binarization threshold
+        x_shifted = x - self.pre_bias
+        # re-binarize with STE
+        if self.training:
+            x_bin = torch.sign(x_shifted)
+            x_shifted = x_bin + (x_shifted - x_shifted.detach())
+        else:
+            x_shifted = torch.sign(x_shifted)
         # extract sliding groups of k bits
-        # x: (N, D) -> (N, n_groups, k)
-        groups = x.unfold(1, self.k, self.stride)  # (N, n_groups, k)
+        groups = x_shifted.unfold(1, self.k, self.stride)  # (N, n_groups, k)
         # apply LUT to each group -> (N, n_groups, num_luts)
         out = self.lut(groups)
         # flatten and project back to hv_dim
-        out = out.reshape(N, -1)  # (N, n_groups * num_luts)
-        out = self.proj(out)  # (N, hv_dim)
-        # binarize back to ±1 (STE for proj weights)
+        out = out.reshape(N, -1)
+        out = self.proj(out)
         if self.training:
             out_bin = torch.sign(out)
             out = out_bin + (out - out.detach())
         else:
             out = torch.sign(out)
-        # apply permutation (re-order coordinates)
         if self.permute:
             out = out[:, self.perm]
         return out
