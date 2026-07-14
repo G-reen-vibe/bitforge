@@ -1,2 +1,3 @@
 round,tag,ablation,params,bits,best_top1,final_top1,final_loss,time_s,status,error
 1,single-expert-no-moe,single_expert,389600,12467200,0.93,0.927,0.2368383376598358,43.7,ok,
+2,no-gate-uniform-avg,no_gate,1558400,49868800,0.959,0.944,0.19610222208499908,167.2,ok,
