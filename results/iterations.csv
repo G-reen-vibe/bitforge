@@ -18,3 +18,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 17,overlapping-groups-stride-k/2,4587008,0.893,0.893,0.3895182058811188,16.3,ok,
 18,spatial-hdc-encoder,2105616,0.126,0.126,2.309709846496582,6.7,ok,
 19,2-layer-mlp-readout,2522000,0.88,0.88,0.38234988355636595,8.5,ok,
+20,stochastic-depth-0.3,2506240,0.885,0.885,0.4193798625469208,9.2,ok,

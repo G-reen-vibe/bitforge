@@ -228,6 +228,7 @@ def main():
     p.add_argument("--no-learnable-encoder", action="store_true", default=False)
     p.add_argument("--distill", action="store_true", default=False)
     p.add_argument("--spatial", action="store_true", default=False)
+    p.add_argument("--drop-path", type=float, default=0.0)
     args = p.parse_args()
 
     mk = {}
@@ -238,6 +239,7 @@ def main():
     if args.multi_k: mk["multi_k"] = True
     if args.no_learnable_encoder: mk["learnable_encoder"] = False
     if args.spatial: mk["spatial_encoder"] = True
+    if args.drop_path > 0: mk["drop_path"] = args.drop_path
 
     print(f"\n=== ROUND {args.round}: {args.tag} ===")
     row = run_round(args.round, args.tag, model_kwargs=mk or None, distill=args.distill)

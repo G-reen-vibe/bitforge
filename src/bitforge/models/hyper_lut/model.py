@@ -59,10 +59,12 @@ class HyperLUTNet(nn.Module):
         multi_k: bool = False,
         ks: tuple = (2, 3, 4),
         spatial_encoder: bool = False,
+        drop_path: float = 0.0,
     ):
         super().__init__()
         self.hv_dim = hv_dim
         self.num_blocks = num_blocks
+        self.drop_path = drop_path
         input_dim = in_channels * img_size * img_size
         self.encoder = HDCEncoder(
             input_dim=input_dim,
@@ -109,8 +111,14 @@ class HyperLUTNet(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         hv = self.encoder(x)  # (N, D) binary ±1
-        for blk, norm in zip(self.blocks, self.norms):
+        for i, (blk, norm) in enumerate(zip(self.blocks, self.norms)):
             hv_new = norm(blk(hv))
+            # Stochastic depth: with probability drop_path, skip this block
+            if self.training and self.drop_path > 0:
+                # Linearly increase drop prob with depth
+                drop_prob = self.drop_path * (i + 1) / self.num_blocks
+                if torch.rand(1).item() < drop_prob:
+                    continue
             hv = torch.tanh(hv + hv_new)
         # final binarization for the readout (STE)
         if self.training:
