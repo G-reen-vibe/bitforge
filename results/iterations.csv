@@ -36,3 +36,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 36,ternary-mlp,70992,0.478,0.478,1.469041477203369,17.7,ok,
 37,fp-conv-stem,154412,0.821,0.821,0.6368155035972595,58.5,ok,
 38,binary-conv-stem,154412,0.764,0.764,0.6796488060951232,54.0,ok,
+39,hybrid-conv-stem,154412,0.829,0.829,0.5199525592327118,58.7,ok,
