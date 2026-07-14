@@ -151,7 +151,7 @@ class BinarySelfAttention(nn.Module):
     """
 
     def __init__(self, embed_dim: int = 128, num_heads: int = 4, dropout: float = 0.0,
-                 topk: int = None):
+                 topk: int = None, scale_init: float = None):
         super().__init__()
         assert embed_dim % num_heads == 0
         self.embed_dim = embed_dim
@@ -162,26 +162,30 @@ class BinarySelfAttention(nn.Module):
         self.v_proj = BinaryLinear(embed_dim, embed_dim, bias=False)
         self.out_proj = BinaryLinear(embed_dim, embed_dim, bias=False)
         self.dropout = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
-        self.scale = 1.0 / math.sqrt(self.head_dim)
-        self.topk = topk  # if set, use sparse top-k attention
+        # Learnable temperature: init to 1/head_dim (much smaller than 1/sqrt(head_dim))
+        # because binary QK product variance is ~head_dim (not 1)
+        if scale_init is None:
+            scale_init = 1.0 / max(1, self.head_dim)
+        self.scale = nn.Parameter(torch.tensor(float(scale_init)))
+        self.topk = topk
         self._bit_width = 1
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """x: (N, L, D) -> (N, L, D)"""
         N, L, D = x.shape
-        q = self.q_proj(x).view(N, L, self.num_heads, self.head_dim).transpose(1, 2)  # (N, H, L, hd)
+        q = self.q_proj(x).view(N, L, self.num_heads, self.head_dim).transpose(1, 2)
         k = self.k_proj(x).view(N, L, self.num_heads, self.head_dim).transpose(1, 2)
         v = self.v_proj(x).view(N, L, self.num_heads, self.head_dim).transpose(1, 2)
-        scores = (q @ k.transpose(-2, -1)) * self.scale  # (N, H, L, L)
+        # learnable scale on attention scores
+        scores = (q @ k.transpose(-2, -1)) * self.scale
         if self.topk is not None and self.topk < L:
-            # sparse top-k attention: only keep top-k scores per row
             topk = min(self.topk, L)
             topk_vals, topk_idx = scores.topk(topk, dim=-1)
             mask = torch.zeros_like(scores).scatter_(-1, topk_idx, 1.0)
             scores = scores * mask + (1 - mask) * (-1e9)
         attn = F.softmax(scores, dim=-1)
         attn = self.dropout(attn)
-        out = attn @ v  # (N, H, L, hd)
+        out = attn @ v
         out = out.transpose(1, 2).contiguous().view(N, L, D)
         return self.out_proj(out)
 

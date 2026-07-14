@@ -25,3 +25,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 24,k2-tiny-lut-32-luts,8797440,0.906,0.893,0.33139674305915834,26.5,ok,
 26,binaryvit-baseline,70986,0.305,0.305,1.914567931175232,33.2,ok,
 27,binaryvit-topk4,70986,0.32,0.31,1.8575969104766845,24.44047474861145,ok,
+28,binaryvit-learnable-scale,70988,0.415,0.415,1.6046022987365722,19.2,ok,
