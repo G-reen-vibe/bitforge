@@ -58,3 +58,4 @@ round,tag,params,best_top1,final_top1,final_loss,time_s,status,error
 61,load-balance-loss,971412,0.9,0.891,0.33097350573539736,93.3,ok,
 62,fp-combiner,971822,0.919,0.919,0.269404129743576,100.6,ok,
 63,avg-not-weighted,971412,0.922,0.922,0.25621473145484924,98.7,ok,
+64,deeper-gate,984052,0.88,0.862,0.3950910074710846,101.2,ok,
