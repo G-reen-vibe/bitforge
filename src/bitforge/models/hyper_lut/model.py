@@ -74,10 +74,12 @@ class HyperLUTNet(nn.Module):
         ])
         self.norms = nn.ModuleList([BitNorm(hv_dim) for _ in range(num_blocks)])
         # Binary linear readout
-        self.fc = BinaryLinear(hv_dim, num_classes, bias=False, scale=False)
-        # Fixed logit scale: 1/sqrt(D) keeps logits in unit-variance range
-        # when hv is ±1 and fc weights are ±1 (dot product has std ~sqrt(D)).
-        self.register_buffer("logit_scale", torch.tensor(1.0 / (hv_dim ** 0.5)))
+        self.fc = BinaryLinear(2 * hv_dim, num_classes, bias=False, scale=False)
+        # alias for clarity
+        self.readout = self.fc
+        # Fixed logit scale: 1/sqrt(2D) keeps logits in unit-variance range
+        # when hv is ±1 and fc weights are ±1 (dot product has std ~sqrt(2D)).
+        self.register_buffer("logit_scale", torch.tensor(1.0 / ((2 * hv_dim) ** 0.5)))
         for m in [self.fc]:
             m._bit_width = 1
 
@@ -96,12 +98,8 @@ class HyperLUTNet(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         hv = self.encoder(x)  # (N, D) binary ±1
+        hv0 = hv  # save for skip connection to readout
         for blk, norm in zip(self.blocks, self.norms):
-            # blk returns binary ±1 in eval, soft in train; norm scales it.
-            # We do residual in FP space (pre-binarization) by re-applying
-            # the LUT forward in "soft" mode. To keep it simple, we use
-            # tanh-bounded residual: hv = tanh(hv + norm(blk(hv)))
-            # which keeps hv in (-1, 1) and is differentiable.
             hv_new = norm(blk(hv))
             hv = torch.tanh(hv + hv_new)
         # final binarization for the readout (STE)
@@ -110,7 +108,10 @@ class HyperLUTNet(nn.Module):
             hv = hv_bin + (hv - hv.detach())
         else:
             hv = torch.sign(hv)
-        return self.logit_scale * self.fc(hv)
+        # Concatenate original input HV with processed HV for readout
+        # (skip connection gives the readout access to raw features)
+        hv_full = torch.cat([hv0, hv], dim=-1)  # (N, 2D)
+        return self.logit_scale * self.readout(hv_full)
 
     def extra_repr(self) -> str:
         return f"hv_dim={self.hv_dim}, num_blocks={self.num_blocks}"
