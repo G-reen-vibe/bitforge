@@ -15,3 +15,5 @@ round,tag,ablation,params,bits,best_top1,final_top1,final_loss,time_s,status,err
 20,single-6conv-no-augment,single_arch,537312,17193984,0.952,0.945,0.1899184901714325,47.7,ok,
 21,fp-cnn-same-arch,fp_vs_binary,537312,17193984,0.974,0.968,0.11825334471464156,49.6,ok,
 22,binary-all-binary-no-fp,fp_vs_binary,537312,537312,0.959,0.959,0.12931041491031647,52.0,ok,
+26,single-8conv-deepest,single_arch,537312,17193984,0.963,0.963,0.11161701118946075,48.7,ok,
+27,single-6conv-bw48,single_arch,1206864,38619648,0.968,0.968,0.10700557208061218,83.4,ok,
