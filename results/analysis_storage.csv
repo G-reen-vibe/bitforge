@@ -1,0 +1,3 @@
+model,params,bits,kb,fp_kb,compression,binary_pct
+Binary 6-Conv Net (fully binary),537312,17193984,2098.88,2098.88,1.0,0.0
+FP 6-Conv Net (same architecture),537312,17193984,2098.88,2098.88,1.0,0.0
