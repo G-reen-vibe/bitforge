@@ -79,19 +79,15 @@ class DifferentiableLUT(nn.Module):
         # Gather logits at this index: shape (..., num_luts)
         # logits: (num_luts, 2^k) -> transpose -> (2^k, num_luts)
         gathered = self.logits.t()[idx]  # (..., num_luts)
-        # Apply Gumbel-softmax on a binary {0,1} choice (interpret logits as
-        # the logit for "1"; the logit for "-1" is -logits)
-        # The Gumbel-softmax trick:
-        #   softmax([+logit, -logit] / T) gives Bernoulli-ish probability
-        # We implement the 2-way Gumbel:
+        # Use tanh + STE for binarization (simpler than 2-way Gumbel, more
+        # stable gradients). The temperature scales the logit before tanh.
         if self.training:
-            # 2-way Gumbel-softmax on [+logit, -logit]
-            two_logits = torch.stack([gathered, -gathered], dim=-1) / self.temperature  # (..., num_luts, 2)
-            soft = F.gumbel_softmax(two_logits, tau=self.temperature, hard=self.hard, dim=-1)
-            # soft[..., 0] is prob of +1, soft[..., 1] is prob of -1
-            # binary output: +1 if [0] chosen, -1 if [1] chosen
-            out = soft[..., 0] - soft[..., 1]  # (..., num_luts)
-            return out
+            scaled = gathered / self.temperature
+            out = torch.tanh(scaled)
+            # STE: forward is tanh, backward is identity (clipped)
+            # This is the standard surrogate for sign()
+            out_bin = torch.sign(out)
+            return out_bin + (out - out.detach())
         else:
             # at eval: hard binarize
             return torch.sign(gathered)
